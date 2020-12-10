@@ -345,7 +345,7 @@ while input_start_key == '':
             try:
                 # 获取nfo信息的javlibrary网页
                 if '图书馆' in jav_file:  # 用户指定了网址，则直接得到jav所在网址
-                    url_appointg = search(r'(javli.+?)\.', jav_file)
+                    url_appointg = search(r'(jav.+?)\.', jav_file)
                     if str(url_appointg) != 'None':
                         url_search_web = url_web + '?v=' + url_appointg.group(1)
                     else:
@@ -366,16 +366,17 @@ while input_start_key == '':
                     title = titleg.group(1)
                 # 第二种情况：搜索结果可能是两个以上，所以这种匹配找不到标题，None！
                 else:   # 找“可能是多个结果的网页”上的所有“box”
-                    list_search_results = findall(r'v=javli(.+?)" title="(.+?-\d+?[a-z]? .+?)"', html_web)     # 这个正则表达式可以忽略avop-00127bod，它是近几年重置的，信息冗余
+                    #print(html_web)
+                    list_search_results = findall(r'v=jav(.+?)" title="(.+?-\d+?[a-z]? .+?)"', html_web)     # 这个正则表达式可以忽略avop-00127bod，它是近几年重置的，信息冗余
                     # 从这些搜索结果中，找到最正确的一个
                     if list_search_results:
                         # 默认用第一个搜索结果
-                        url_first_result = url_web + '?v=javli' + list_search_results[0][0]
+                        url_first_result = url_web + '?v=jav' + list_search_results[0][0]
                         # 在javlibrary上搜索 SSNI-589 SNIS-459 这两个车牌，你就能看懂下面的if
                         if len(list_search_results) > 1 and not list_search_results[1][1].endswith('ク）'):  # ク）是蓝光重置版
                             # print(list_search_results)
                             if list_search_results[0][1].endswith('ク）'):   # 排在第一个的是蓝光重置版，比如SSNI-589（ブルーレイディスク），它的封面不正常，跳过它
-                                url_first_result = url_web + '?v=javli' + list_search_results[1][0]
+                                url_first_result = url_web + '?v=jav' + list_search_results[1][0]
                             elif list_search_results[1][1].split(' ', 1)[0] == jav_raw_num:  # 不同的片，但车牌完全相同，比如id-020。警告用户，但默认用第一个结果。
                                 bool_unique = False
                                 num_fail += 1
@@ -447,6 +448,7 @@ while input_start_key == '':
                     dict_nfo['发行年份'] = '1970'
                     dict_nfo['月'] = '01'
                     dict_nfo['日'] = '01'
+                print('    >发行年月日：', dict_nfo['发行年月日'])
                 # 片长 <td><span class="text">150</span> 分钟</td>
                 runtimeg = search(r'span class="text">(\d+?)</span>', html_web)
                 if str(runtimeg) != 'None':
@@ -480,6 +482,7 @@ while input_start_key == '':
                 else:
                     actors = ['有码演员']
                     dict_nfo['首个演员'] = dict_nfo['全部演员'] = '有码演员'
+                print('    >演员：', actors)
                 # 处理影片的标题过长  给用户重命名用的标题是 短的title，nfo中是“完整标题”，但用户在ini中只用写“标题”
                 dict_nfo['完整标题'] = title_only
                 if len(title_only) > int_title_len:
@@ -532,14 +535,16 @@ while input_start_key == '':
                     plot = ''
                 #######################################################################
                 # 前往javbus查找系列，顺便查找图片url，因为javlibrary引用dmm的图片，晚上下载很慢
-                url_cover_bus, series, status_series = find_series_cover_bus(jav_num, url_bus, proxy_bus)
-                if status_series:
-                    num_warn += 1
-                    record_warn('    >第' + str(num_warn) + '个警告！系列可能错误，javbus搜索到同车牌的不同视频：' + jav_num + '，' + path_relative + '\n')
-                if series:
-                    dict_nfo['系列'] = series
-                else:
-                    dict_nfo['系列'] = '有码系列'
+                # url_cover_bus, series, status_series = find_series_cover_bus(jav_num, url_bus, proxy_bus)
+                #if status_series:
+                #    num_warn += 1
+                #    record_warn('    >第' + str(num_warn) + '个警告！系列可能错误，javbus搜索到同车牌的不同视频：' + jav_num + '，' + path_relative + '\n')
+                #if series:
+                #    dict_nfo['系列'] = series
+                #else:
+                #    dict_nfo['系列'] = '有码系列'
+                series = ''
+                dict_nfo['系列'] = '有码系列'
                 #######################################################################
                 # jav_name 是自始至终的 文件名（不带文件类型）  jav_file是自始至终的 文件名（完整带文件类型） root是原所在文件夹的路径  root_now 是现在（新）所在文件夹的路径
                 # path_jav 是现在视频路径   path_subt是现在字幕路径   subt_file是 自始至终的 字幕文件名（带文件类型）  jav_folder是自始至终的 所在文件夹名（不是路径）
@@ -771,23 +776,33 @@ while input_start_key == '':
                         pass
                     else:
                         # javlibrary上有唯一的搜索结果，优先去取javbus下载封面，已经去过javbus并找到封面，用户没有指定javbus的网址
-                        if bool_unique and bool_bus_first and url_cover_bus and '图书馆' not in jav.file:
-                            print('    >从javbus下载封面：', url_cover_bus)
+                        #if bool_unique and bool_bus_first and url_cover_bus and '图书馆' not in jav.file:
+                        #    print('    >从javbus下载封面：', url_cover_bus)
+                        #    try:
+                        #        download_pic(url_cover_bus, path_fanart, proxy_bus)
+                        #        print('    >fanart.jpg下载成功')
+                        #    except:
+                        #        print('    >从javbus下载fanart.jpg失败!')
+                                # 还是用javlibrary的dmm图片
+                        #        print('    >从dmm下载封面：', url_cover)
+                        #        try:
+                        #            download_pic(url_cover, path_fanart, proxy_dmm)
+                        #            print('    >fanart.jpg下载成功')
+                        #        except:
+                        #            num_fail += 1
+                        #            record_fail('    >第' + str(
+                        #                num_fail) + '个失败！下载fanart.jpg失败：' + url_cover + '，' + path_relative + '\n')
+                        #            continue     # 【退出对该jav的整理】
+                        if bool_unique and bool_bus_first and '图书馆' not in jav.file:
+                            print('    >从dmm下载封面：', url_cover)
                             try:
-                                download_pic(url_cover_bus, path_fanart, proxy_bus)
+                                download_pic(url_cover, path_fanart, proxy_dmm)
                                 print('    >fanart.jpg下载成功')
                             except:
-                                print('    >从javbus下载fanart.jpg失败!')
-                                # 还是用javlibrary的dmm图片
-                                print('    >从dmm下载封面：', url_cover)
-                                try:
-                                    download_pic(url_cover, path_fanart, proxy_dmm)
-                                    print('    >fanart.jpg下载成功')
-                                except:
-                                    num_fail += 1
-                                    record_fail('    >第' + str(
-                                        num_fail) + '个失败！下载fanart.jpg失败：' + url_cover + '，' + path_relative + '\n')
-                                    continue     # 【退出对该jav的整理】
+                                num_fail += 1
+                                record_fail('    >第' + str(
+                                    num_fail) + '个失败！下载fanart.jpg失败：' + url_cover + '，' + path_relative + '\n')
+                                continue     # 【退出对该jav的整理】
                         # 用户没有去javbus获取系列，或者指定“图书馆”网址，还是从javlibrary的dmm图片地址下载
                         else:
                             print('    >从dmm下载封面：', url_cover)
