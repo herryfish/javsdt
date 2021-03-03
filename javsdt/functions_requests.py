@@ -5,7 +5,8 @@ from time import sleep
 from requests import Session, get, post
 from PIL import Image
 from cloudscraper import get_cookie_string
-# from traceback import format_exc
+from traceback import format_exc
+import sys
 
 # 功能：请求各大jav网站和arzon的网页
 # 参数：网址url，请求头部header/cookies，代理proxy
@@ -29,7 +30,7 @@ def steal_arzon_cookies(proxy):
                 print('通过arzon的成人验证！\n')
                 return session.cookies.get_dict()
         except:
-            # print(format_exc())
+            print(format_exc())
             print('通过失败，重新尝试...')
             continue
     print('>>请检查你的网络环境是否可以打开：https://www.arzon.jp/')
@@ -114,7 +115,7 @@ def steal_library_header(url, proxy):
             print('通过5秒检测！\n')
             return {'User-Agent': user_agent, 'Cookie': cookie_value}
         except:
-            # print(format_exc())
+            print(format_exc())
             print('通过失败，重新尝试...')
             continue
     print('>>通过javlibrary的5秒检测失败：', url)
@@ -122,7 +123,9 @@ def steal_library_header(url, proxy):
 
 
 # 搜索javlibrary，或请求javlibrary上jav所在网页，返回html
-def get_library_html(url, header, proxy):
+def get_library_html(url, header, proxy, baseurl = None):
+    if baseurl == None:
+        baseurl = url[:23]
     for retry in range(10):
         try:
             if proxy:
@@ -134,18 +137,22 @@ def get_library_html(url, header, proxy):
             continue
         rqs.encoding = 'utf-8'
         rqs_content = rqs.text
-        # print(rqs_content)
+        #print(rqs_content)
         if search(r'JAVLibrary', rqs_content):        # 得到想要的网页，直接返回
             return rqs_content, header
         elif search(r'jav', rqs_content):           # 搜索车牌后，javlibrary跳转前的网页
-            url = url[:23] + search(r'(\?v=jav.+?)"', rqs_content).group(1)    # rqs_content是一个非常简短的跳转网页，内容是目标jav所在网址
-            if len(url) > 70:                          # 跳转车牌特别长，cf已失效
-                header = steal_library_header(url[:23], proxy)  # 更新header后继续请求
-                continue
-            print('    >获取信息：', url)
-            continue                                  # 更新url后继续get
+            test = search(r'(\?v=jav.+?)"', rqs_content)
+            if test != None:
+                url = baseurl + test.group(1)    # rqs_content是一个非常简短的跳转网页，内容是目标jav所在网址
+                if len(url) > 70:                          # 跳转车牌特别长，cf已失效
+                    header = steal_library_header(baseurl, proxy)  # 更新header后继续请求
+                    continue
+                print('    >获取信息：', url)
+                continue                                  # 更新url后继续get
+            else:
+                print(rqs_content)
         elif search(r'Compatible', rqs_content):     # cf检测
-            header = steal_library_header(url[:23], proxy)    # 更新header后继续请求
+            header = steal_library_header(baseurl, proxy)    # 更新header后继续请求
             continue
         else:                                         # 代理工具返回的错误信息
             print('    >打开网页失败，空返回...重新尝试...')
@@ -351,17 +358,17 @@ def download_pic(url, path, proxy):
     for retry in range(5):
         try:
             if proxy:
-                r = get(url, proxies=proxy, stream=True, timeout=(6, 10))
+                r = get(url, proxies=proxy, stream=True, timeout=(6, 60))
                 with open(path, 'wb') as pic:
                     for chunk in r:
                         pic.write(chunk)
             else:
-                r = get(url, stream=True, timeout=(6, 10))
+                r = get(url, stream=True, timeout=(6, 30))
                 with open(path, 'wb') as pic:
                     for chunk in r:
                         pic.write(chunk)
         except:
-            # print(format_exc())
+            print(sys.exc_info())
             print('    >下载失败，重新下载...')
             continue
         # 如果下载的图片打不开，则重新下载

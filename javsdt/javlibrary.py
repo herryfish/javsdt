@@ -19,7 +19,9 @@ from functions_translate import tran_plot
 from functions_picture import add_watermark_divulge, crop_poster_youma
 from functions_requests import steal_arzon_cookies, get_arzon_html, find_plot_arzon, steal_library_header, \
     get_library_html, get_bus_html, find_series_cover_bus
-
+from functions_redis import checkRedisKey, setRedisKeyValue
+from functions_nfofile import readNfo
+from vid_cache import VidCache
 
 #  main开始
 print('1、避开21:00-1:00，访问javlibrary和arzon很慢。\n'
@@ -101,7 +103,7 @@ try:
     bool_dmm_proxy = True if config_settings.get("局部代理", "是否代理dmm图片？") == '是' else False
     ####################################################################################################################
     # 是否 使用简体中文 简介翻译的结果和jav特征会变成“简体”还是“繁体”
-    bool_zh = True if config_settings.get("其他设置", "简繁中文？") == '简' else False
+    bool_zh = True if config_settings.get("其他设置", "简体中文/日语？") == '简' else False
     # 自定义 文件类型 只有列举出的视频文件类型，才会被处理
     custom_file_type = config_settings.get("其他设置", "扫描文件类型")
     # 自定义 命名格式中“标题”的长度 windows只允许255字符，所以限制长度，但nfo中的标题是全部
@@ -143,6 +145,8 @@ except:
     print('\n无法读取ini文件，请修改它为正确格式，或者打开“【ini】重新创建ini.exe”创建全新的ini！')
     os.system('pause')
 
+cache = VidCache()
+
 # 未雨绸缪：如果需要为kodi整理头像，先检查演员头像ini、头像文件夹是否存在
 if bool_sculpture:
     check_actors()
@@ -174,8 +178,8 @@ if bool_zh:
     url_web += 'cn/'   # library显示简体中文
     to_language = 'zh'      # 目标语言，百度翻译规定 zh是简体中文，cht是繁体中文
 else:
-    url_web += 'tw/'   # library显示繁体中文
-    to_language = 'cht'
+    url_web += 'ja/'   # library显示繁体中文
+    to_language = 'jp'
 # 初始化：“是否重命名或创建独立文件夹”，还会受到“归类影片”影响。
 if bool_classify:                           # 如果需要归类
     if bool_classify_folder:                # 并且是针对文件夹
@@ -317,7 +321,8 @@ while input_start_key == '':
             continue    # 【跳出1】
         # 正式开始
         for jav in list_jav_videos:
-            jav_raw_num = jav.num   # 车牌  abc-123
+            title = '' #标题
+            jav_num = jav_raw_num = jav.num   # 车牌  abc-123
             jav_file = jav.file     # 完整的原文件名  abc-123.mp4
             jav_epi = jav.episodes  # 这是第几集？一般都只有一集
             num_all_episodes = dict_car_pref[jav_raw_num]  # 该车牌总共多少集
@@ -325,6 +330,9 @@ while input_start_key == '':
             path_relative = sep + path_jav.replace(root_choose, '')   # 影片的相对于所选文件夹的路径，用于报错
             print('>>正在处理：', jav_file)
             print('    >发现车牌：', jav_raw_num)
+            #if (cache.contains(jav_raw_num)):
+            #    print('    >该车已发车：', jav_raw_num)
+            #    continue
             # 视频本身的一些属性
             video_type = '.' + jav_file.split('.')[-1].lower()    # 文件类型，如：.mp4
             jav_name = jav_file[:-len(video_type)]    # 不带视频类型的文件名
@@ -510,6 +518,9 @@ while input_start_key == '':
                 dict_nfo['评分'] = score
                 # 烂番茄评分 用上面的评分*10
                 criticrating = str(float(score)*10)
+                # 保存数据
+
+
                 ################################################################################
                 # 去arzon找简介
                 if bool_nfo and bool_plot and jav_epi == 1:
@@ -742,6 +753,8 @@ while input_start_key == '':
                         f.write("  <actor>\n    <name>" + i + "</name>\n    <type>Actor</type>\n  </actor>\n")
                     f.write("</movie>\n")
                     f.close()
+                    print(path_nfo)
+                    readNfo(path_nfo, cache)
                     print('    >nfo收集完成')
 
                 # 5需要两张图片【独特】

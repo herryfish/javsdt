@@ -12,6 +12,7 @@ from shutil import copyfile
 # 返回：发现的车牌
 # 辅助：re.search
 def find_num_lib(file_temp, list_suren_num):
+    file_temp = file_temp.upper()
     if search(r'[^A-Z]?T28[-_ ]*\d\d+', file_temp):
         jav_pref = 'T-28'
         jav_suf = search(r'T28[-_ ]*(\d\d+)', file_temp).group(1)

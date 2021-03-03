@@ -1,0 +1,6 @@
+savedata
+temp
+__pycache__
+*.json
+*.txt
+*.ini
