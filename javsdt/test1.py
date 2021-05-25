@@ -12,24 +12,28 @@ from traceback import format_exc
 import pyperclip
 from PIL import Image
 from functions_process import find_num_lib, replace_xml_win
-from functions_requests import steal_library_header, get_library_html, download_pic
+from functions_requests import get_library_html, download_pic
 from vid_cache import VidCache
 from function_db import my_db
+import cloudscraper
 
 sys.path.append(r'D:\work\Source\gitTest\autoSignIn')
 from functions_networks import get_content, DEFAULT_PROXY
 
 JPG_FILE_PATH = r'\\192.168.1.251\systemdata\jpg\temp'
 WISH_LIST_FILE = 'wish.txt'
+RETRY_COUNT = 5
 
 session = None
-jav_url = 'http://www.b47w.com/ja/'
+jav_url = 'http://www.f50q.com/ja/'
+#jav_url = 'http://www.b47w.com/ja/'
 #jav_url = 'http://www.javlibrary.com/ja/'
 search_keys = ['有码', '有碼','骑兵', '中文字幕→新片合集']
 url = 'http://z3.xm1024p.biz/pw/thread.php?fid=83'
 #url = 'https://k5.kcl20190711.rocks/pw/'
+#url = 'https://k5.97xzl.info/pw/'
 file_name = 'test' + time.strftime("%Y%m%d%H%M%S", time.localtime())  + '.txt'
-start_page = 4
+start_page = 10
 max_page_count = 4
 max_get_count = 0 #测试用,0取全部
 need_download_pic = True
@@ -194,6 +198,8 @@ def run(url):
 
         # 取得http头信息
         header = steal_library_header(jav_url, DEFAULT_PROXY)
+        if (header == None):
+            return
 
         # 打开主页
         rqs_content, url, cookies = get_content(url, session)
@@ -292,6 +298,7 @@ def run(url):
                     else:
                         if javnum in wish_list:
                             wish_list_magnet.append(magnet_url)
+                            bus_list[javnum] = magnet_url
                         if (not bus_list.__contains__(javnum)) and (not getted_list.__contains__(javnum)):
                             bus_list[javnum] = magnet_url
                             temp_numlist[javnum] = magnet_url
@@ -300,7 +307,6 @@ def run(url):
                     # 测试用
                     if max_get_count != 0 and len(bus_list) >= max_get_count:
                         break
-                    write_wishlist(wish_list_magnet)
                 disp_page.num_list = dict(temp_numlist)
                 print('')
             
@@ -319,6 +325,8 @@ def run(url):
                         get_num_image(jav_url, num, header, db = db, magnet_url = magnet_url)
                     write_file(file_name, 'info', '%s,%s,%s,%s' % (num, magnet_url, disp_page.title, disp_page.url))
             print('')
+            
+            write_wishlist(wish_list_magnet)
 
         db.close()
 
@@ -428,6 +436,26 @@ def get_wishlist():
 def write_wishlist(wishlist):
     with open(WISH_LIST_FILE, 'a+', encoding='utf-8') as f1:
         f1.write('\n'.join(wishlist))    
+
+#################################################### javlibrary ########################################################
+# 获取一个library_cookie，返回cookie
+def steal_library_header(url, proxy):
+    print('\n正在尝试通过', url, '的cookie')
+    for retry in range(RETRY_COUNT):
+        try:
+            if proxy:
+                cookie_value, user_agent = cloudscraper.get_cookie_string(url, proxies=proxy, timeout=15)
+            else:
+                cookie_value, user_agent = cloudscraper.get_cookie_string(url, timeout=15)
+            print('通过5秒检测！\n')
+            return {'User-Agent': user_agent, 'Cookie': cookie_value}
+        except:
+            print(format_exc())
+            print('通过失败，重新尝试...')
+            continue
+    print('>>通过javlibrary的5秒检测失败：', url)
+    return None
+
 
 if __name__ == "__main__":
     # print(sys.argv)
